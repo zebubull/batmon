@@ -1,0 +1,20 @@
+[package]
+name = "batmon"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "batmon"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5.11", features = ["derive"] }
+libnotify = "1.0.3"
+log = "0.4.22"
+pretty_env_logger = "0.5.0"
+strum = { version = "0.26.3", features = ["derive"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
