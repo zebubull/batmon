@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use crate::device::Device;
 use crate::poll::PolledValue;
 use crate::status::ChargingStatus;
@@ -25,6 +26,14 @@ pub struct BatteryState {
 
 impl Battery {
     pub fn find() -> Option<Self> {
+        if std::fs::metadata("/tmp/batmon-battery").is_ok() {
+            debug!("Using cached battery");
+            if let Ok(bat) = Battery::load_cached_battery() {
+                return Some(bat);
+            }
+            debug!("Failed to create battery from cache")
+        }
+
         let devices = std::fs::read_dir("/sys/class/power_supply").ok()?;
 
         let mut devices: Vec<_> = devices
@@ -52,8 +61,9 @@ impl Battery {
                 Ok(bat) => {
                     debug!("found battery at device '{}' (rating {r})", bat.name);
                     if r < 5 {
-                        warn!("device '{}' may be missing some features (expected five, got {r})", bat.name);
+                        warn!("device '{}' may be missing some features (expected 5, got {r})", bat.name);
                     }
+                    let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
                     return Some(bat);
                 }
                 Err(e) => {
@@ -66,6 +76,23 @@ impl Battery {
         }
 
         None
+    }
+
+    fn load_cached_battery() -> Result<Battery, Box<dyn std::error::Error>> {
+        let bat = std::fs::read_to_string("/tmp/batmon-battery")?;
+        let mut path = std::path::PathBuf::from_str("/sys/class/power_supply")?;
+        path.push(bat.trim());
+
+        let device = Device::from(path);
+        let rating = device.rating();
+
+        let b = Battery::try_from(&device)?;
+
+        if rating < 5 {
+            warn!("Cached device '{}' may be missing features (expected 5, got {rating})", device.path.file_name().unwrap_or_default().to_string_lossy());
+        }
+
+        Ok(b)
     }
 
     pub fn state(&self) -> BatteryState {
@@ -81,27 +108,27 @@ impl Battery {
 
     pub fn update(&mut self) {
         if let Err(e) = self.level.update() {
-            warn!("Failed to update charge level: {e}");
+            debug!("Failed to update charge level: {e}");
         }
 
         if let Err(e) = self.capacity.update() {
-            warn!("Failed to update capacity: {e}");
+            debug!("Failed to update capacity: {e}");
         }
 
         if let Err(e) = self.charge.update() {
-            warn!("Failed to update charge: {e}");
+            debug!("Failed to update charge: {e}");
         }
 
         if let Err(e) = self.current.update() {
-            warn!("Failed to update current: {e}");
+            debug!("Failed to update current: {e}");
         }
 
         if let Err(e) = self.status.update() {
-            warn!("Failed to update status: {e}");
+            debug!("Failed to update status: {e}");
         }
 
         if let Err(e) = self.cycles.update() {
-            warn!("Failed to update cycles: {e}");
+            debug!("Failed to update cycles: {e}");
         }
     }
 

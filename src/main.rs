@@ -13,11 +13,10 @@ type Result<T> = std::result::Result<T, std::boxed::Box<dyn std::error::Error>>;
 static APP_NAME: &'static str = "batmon";
 
 fn main() {
-    if cfg!(debug_assertions) {
-        pretty_env_logger::formatted_builder().filter_level(log::LevelFilter::Trace).init();
-    } else {
-        pretty_env_logger::init();
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", if cfg!(debug_assertions) { "trace" } else { "warn" });
     }
+    pretty_env_logger::init();
     match libnotify::init(APP_NAME) {
         Ok(_) => debug!("Initialized libnotify"),
         Err(e) => {

@@ -14,7 +14,7 @@ impl<T> PolledValue<T> {
         };
 
         if !std::fs::metadata(&p.path).is_ok() {
-            warn!(
+            debug!(
                 "Poll target {} does not exist or is not accessible",
                 p.path.to_string_lossy()
             );
