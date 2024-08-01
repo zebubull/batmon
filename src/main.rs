@@ -36,7 +36,10 @@ fn main() {
 
 fn run() -> Result<()> {
     let args = Cli::parse();
-    let mut bat = Battery::find().ok_or("Failed to detect battery")?;
+    let mut bat = match args.device {
+        Some(d) => Battery::new(&d).map_err(|e| format!("Failed to load specified battery: {e}"))?,
+        None => Battery::find().ok_or("Failed to detect a valid battery")?,
+    };
     let s = bat.state();
     match args.command {
         Some(Command::Capacity) => println!("{}", s.capacity),

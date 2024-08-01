@@ -31,7 +31,7 @@ impl Battery {
             if let Ok(bat) = Battery::load_cached_battery() {
                 return Some(bat);
             }
-            debug!("Failed to create battery from cache")
+            debug!("Failed to create battery from cache, falling back to autodetect")
         }
 
         let devices = std::fs::read_dir("/sys/class/power_supply").ok()?;
@@ -78,10 +78,9 @@ impl Battery {
         None
     }
 
-    fn load_cached_battery() -> Result<Battery, Box<dyn std::error::Error>> {
-        let bat = std::fs::read_to_string("/tmp/batmon-battery")?;
+    pub fn new(name: &str) -> Result<Battery, Box<dyn std::error::Error>> {
         let mut path = std::path::PathBuf::from_str("/sys/class/power_supply")?;
-        path.push(bat.trim());
+        path.push(name.trim());
 
         let device = Device::from(path);
         let rating = device.rating();
@@ -93,6 +92,11 @@ impl Battery {
         }
 
         Ok(b)
+    }
+
+    fn load_cached_battery() -> Result<Battery, Box<dyn std::error::Error>> {
+        let bat = std::fs::read_to_string("/tmp/batmon-battery")?;
+        Battery::new(&bat)
     }
 
     pub fn state(&self) -> BatteryState {
@@ -176,8 +180,12 @@ impl std::fmt::Display for Battery {
 impl TryFrom<&Device> for Battery {
     type Error = Box<dyn std::error::Error>;
     fn try_from(device: &Device) -> Result<Self, Self::Error> {
+        if std::fs::metadata(&device.path).is_err() {
+            return Err("Device does not exist".into())
+        }
+
         if !device.is_system_battery() {
-            return Err("Invalid type".into());
+            return Err("Device is not a system battery".into());
         }
     
         let name = device.path.file_name().unwrap_or_default().to_string_lossy().to_string();

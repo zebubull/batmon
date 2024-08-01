@@ -37,4 +37,8 @@ pub struct Cli {
     /// Print a specific battery parameter to standard output
     #[command(subcommand)]
     pub command: Option<Command>,
+    
+    /// Use a specific device instead of trying to detect the system battery
+    #[arg(short, long)]
+    pub device: Option<String>,
 }
