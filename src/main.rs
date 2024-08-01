@@ -14,7 +14,14 @@ static APP_NAME: &'static str = "batmon";
 
 fn main() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", if cfg!(debug_assertions) { "trace" } else { "warn" });
+        std::env::set_var(
+            "RUST_LOG",
+            if cfg!(debug_assertions) {
+                "trace"
+            } else {
+                "warn"
+            },
+        );
     }
     pretty_env_logger::init();
     match libnotify::init(APP_NAME) {
@@ -37,7 +44,9 @@ fn main() {
 fn run() -> Result<()> {
     let args = Cli::parse();
     let mut bat = match args.device {
-        Some(d) => Battery::new(&d).map_err(|e| format!("Failed to load specified battery: {e}"))?,
+        Some(d) => {
+            Battery::new(&d).map_err(|e| format!("Failed to load specified battery: {e}"))?
+        }
         None => Battery::find().ok_or("Failed to detect a valid battery")?,
     };
     let s = bat.state();

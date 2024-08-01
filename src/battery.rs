@@ -1,7 +1,7 @@
-use std::str::FromStr;
 use crate::device::Device;
 use crate::poll::PolledValue;
 use crate::status::ChargingStatus;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Battery {
@@ -46,13 +46,17 @@ impl Battery {
             })
             .filter_map(|d| {
                 if !d.is_system_battery() {
-                    debug!("Device '{}' is (probably) not a battery", d.path.file_name().unwrap_or_default().to_string_lossy());
+                    debug!(
+                        "Device '{}' is (probably) not a battery",
+                        d.path.file_name().unwrap_or_default().to_string_lossy()
+                    );
                     None
                 } else {
                     let rating = d.rating();
                     Some((d, rating))
                 }
-            }).collect();
+            })
+            .collect();
 
         devices.sort_by_key(|d| d.1);
 
@@ -61,16 +65,22 @@ impl Battery {
                 Ok(bat) => {
                     debug!("found battery at device '{}' (rating {r})", bat.name);
                     if r < 5 {
-                        warn!("device '{}' may be missing some features (expected 5, got {r})", bat.name);
+                        warn!(
+                            "device '{}' may be missing some features (expected 5, got {r})",
+                            bat.name
+                        );
                     }
                     let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
                     return Some(bat);
                 }
                 Err(e) => {
-                    let name = d.path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                    debug!(
-                        "device {name} (rating {r}) failed to init: {e}",
-                    );
+                    let name = d
+                        .path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    debug!("device {name} (rating {r}) failed to init: {e}",);
                 }
             };
         }
@@ -88,7 +98,14 @@ impl Battery {
         let b = Battery::try_from(&device)?;
 
         if rating < 5 {
-            warn!("Cached device '{}' may be missing features (expected 5, got {rating})", device.path.file_name().unwrap_or_default().to_string_lossy());
+            warn!(
+                "Cached device '{}' may be missing features (expected 5, got {rating})",
+                device
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            );
         }
 
         Ok(b)
@@ -181,14 +198,19 @@ impl TryFrom<&Device> for Battery {
     type Error = Box<dyn std::error::Error>;
     fn try_from(device: &Device) -> Result<Self, Self::Error> {
         if std::fs::metadata(&device.path).is_err() {
-            return Err("Device does not exist".into())
+            return Err("Device does not exist".into());
         }
 
         if !device.is_system_battery() {
             return Err("Device is not a system battery".into());
         }
-    
-        let name = device.path.file_name().unwrap_or_default().to_string_lossy().to_string();
+
+        let name = device
+            .path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         let mut bat = Battery {
             name,
             level: PolledValue::new(100, device.path.join("capacity")),
