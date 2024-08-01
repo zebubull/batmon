@@ -5,6 +5,7 @@ pub enum ChargingStatus {
     Charging,
     Discharging,
     Full,
+    NotCharging,
 }
 
 impl ChargingStatus {
@@ -27,6 +28,7 @@ impl std::str::FromStr for ChargingStatus {
             "Charging" => Ok(Self::Charging),
             "Discharging" => Ok(Self::Discharging),
             "Full" => Ok(Self::Full),
+            "Not charging" => Ok(Self::Full),
             _ => Err(StatusParseError),
         }
     }

@@ -158,9 +158,14 @@ impl Battery {
         let capacity = *self.capacity;
         let current = *self.current;
         let total_seconds = match *self.status {
-            ChargingStatus::Full => return String::from("Full"),
-            ChargingStatus::Discharging => charge * 60 * 60 / current,
-            ChargingStatus::Charging => (capacity - charge) * 60 * 60 / current,
+            ChargingStatus::Full => return String::from("00:00:00"),
+            ChargingStatus::NotCharging => return String::from("00:00:00"),
+            ChargingStatus::Discharging => {
+                (charge * 60 * 60).checked_div(current).unwrap_or_default()
+            }
+            ChargingStatus::Charging => ((capacity - charge) * 60 * 60)
+                .checked_div(current)
+                .unwrap_or_default(),
         };
 
         let s = total_seconds % 60;
@@ -173,6 +178,7 @@ impl Battery {
     pub fn remaining_labelled(&self) -> String {
         let label = match *self.status {
             ChargingStatus::Full => return String::from("Full"),
+            ChargingStatus::NotCharging => return String::from("Not charging"),
             ChargingStatus::Charging => "until full",
             ChargingStatus::Discharging => "remaining",
         };
@@ -184,13 +190,15 @@ impl std::fmt::Display for Battery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} ({}) @ {}%, {}, {}",
-            self.name,
-            *self.cycles,
-            *self.level,
-            *self.status,
-            self.remaining_labelled()
-        )
+            "{} ({}) @ {}%, {}",
+            self.name, *self.cycles, *self.level, *self.status,
+        )?;
+        match *self.status {
+            ChargingStatus::Discharging | ChargingStatus::Charging => {
+                write!(f, ", {}", self.remaining_labelled())
+            }
+            _ => Ok(()),
+        }
     }
 }
 

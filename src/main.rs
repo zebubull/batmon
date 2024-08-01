@@ -121,7 +121,8 @@ fn update_battery_and_notify(battery: &mut Battery) -> Result<()> {
             n.set_urgency(Urgency::Low);
             n.show()?;
         }
-        Some(ChargingStatus::Full) => {
+        // Assume not charging means full (at least on my system)
+        Some(ChargingStatus::Full | ChargingStatus::NotCharging) => {
             info!("Battery full");
             let body = format!("{} @ 100%", battery.name);
             let n = Notification::new("Battery full", Some(body.as_str()), None);
