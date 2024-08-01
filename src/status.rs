@@ -28,7 +28,7 @@ impl std::str::FromStr for ChargingStatus {
             "Charging" => Ok(Self::Charging),
             "Discharging" => Ok(Self::Discharging),
             "Full" => Ok(Self::Full),
-            "Not charging" => Ok(Self::Full),
+            "Not charging" => Ok(Self::NotCharging),
             _ => Err(StatusParseError),
         }
     }
