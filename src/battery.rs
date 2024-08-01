@@ -27,22 +27,35 @@ impl Battery {
     pub fn find() -> Option<Self> {
         let devices = std::fs::read_dir("/sys/class/power_supply").ok()?;
 
-        for d in devices {
-            let d = match d {
-                Ok(dir) => dir,
-                Err(_) => continue,
-            };
+        let mut devices: Vec<_> = devices
+            .filter_map(|d| {
+                if d.is_err() {
+                    None
+                } else {
+                    Some(Device::from(d.unwrap().path()))
+                }
+            })
+            .filter_map(|d| {
+                if !d.is_battery() {
+                    None
+                } else {
+                    let rating = d.rating();
+                    Some((d, rating))
+                }
+            }).collect();
 
-            match Battery::try_from(Device::from(&d.path())) {
-                Ok(mut bat) => {
-                    bat.name = d.file_name().to_string_lossy().to_string();
-                    debug!("found battery at device {}", bat.name);
+        devices.sort_by_key(|d| d.1);
+
+        for (d, r) in devices {
+            match Battery::try_from(&d) {
+                Ok(bat) => {
+                    debug!("found battery at device '{}' (rating {r})", bat.name);
                     return Some(bat);
                 }
                 Err(e) => {
+                    let name = d.path.file_name().unwrap_or_default().to_string_lossy().to_string();
                     debug!(
-                        "device {} is (probably) not a battery: {e}",
-                        d.file_name().to_string_lossy()
+                        "device {name} (rating {r}) is (probably) not a battery: {e}",
                     );
                 }
             };
@@ -129,15 +142,16 @@ impl std::fmt::Display for Battery {
     }
 }
 
-impl TryFrom<Device<'_>> for Battery {
+impl TryFrom<&Device> for Battery {
     type Error = Box<dyn std::error::Error>;
-    fn try_from(device: Device) -> Result<Self, Self::Error> {
+    fn try_from(device: &Device) -> Result<Self, Self::Error> {
         if !device.is_battery() {
             return Err("Invalid type".into());
         }
-
+    
+        let name = device.path.file_name().unwrap_or_default().to_string_lossy().to_string();
         let mut bat = Battery {
-            name: String::from("Battery"),
+            name,
             level: PolledValue::new(100, device.path.join("capacity")),
             capacity: PolledValue::new(0, device.path.join("charge_full")),
             charge: PolledValue::new(0, device.path.join("charge_now")),

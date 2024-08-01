@@ -1,12 +1,12 @@
-use std::path::Path;
+use std::path::PathBuf;
 
-pub struct Device<'a> {
-    pub path: &'a Path,
+pub struct Device {
+    pub path: PathBuf,
 }
 
-impl Device<'_> {
+impl Device {
     pub fn is_battery(&self) -> bool {
-        let meta = match std::fs::metadata(self.path) {
+        let meta = match std::fs::metadata(&self.path) {
             Ok(m) => m,
             Err(_) => return false,
         };
@@ -30,15 +30,28 @@ impl Device<'_> {
 
         ty.trim() == "Battery"
     }
+
+    fn has_file_available(&self, file: &str) -> bool {
+        std::fs::metadata(self.path.join(file)).is_ok()
+    }
+
+    pub fn rating(&self) -> u8 {
+        [
+            self.has_file_available("current_now"),
+            self.has_file_available("capacity"),
+            self.has_file_available("charge_full"),
+            self.has_file_available("charge_now"),
+            self.has_file_available("cycle_count"),
+            self.has_file_available("status"),
+        ].into_iter().filter(|b| *b).count() as u8
+    }
 }
 
-impl<'a, T> From<&'a T> for Device<'a>
-where
-    T: AsRef<Path>,
+impl From<PathBuf> for Device
 {
-    fn from(value: &'a T) -> Self {
+    fn from(value: PathBuf) -> Self {
         Device {
-            path: value.as_ref(),
+            path: value,
         }
     }
 }
