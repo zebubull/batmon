@@ -25,7 +25,7 @@ impl Device {
 
         if ty.trim() != "Battery" {
             debug!(
-                "Device '{}' ('{}') rejected",
+                "Device '{}' ('{}') rejected: Bad type",
                 self.path.file_name().unwrap_or_default().to_string_lossy(),
                 ty.trim(),
             );
@@ -38,12 +38,21 @@ impl Device {
 
         match std::fs::read_to_string(scope_file) {
             Ok(s) => {
-                debug!(
-                    "Match '{}' ({})",
-                    self.path.file_name().unwrap_or_default().to_string_lossy(),
-                    s.trim()
-                );
-                s.trim() == "System"
+                let valid = s.trim() == "System";
+
+                if valid {
+                    debug!(
+                        "Device '{}' is (probably) a system battery",
+                        self.path.file_name().unwrap_or_default().to_string_lossy(),
+                    );
+                } else {
+                    debug!(
+                        "Device '{}' ('{}') rejected: Bad scope",
+                        self.path.file_name().unwrap_or_default().to_string_lossy(),
+                        s.trim(),
+                    );
+                }
+                valid
             }
             Err(_) => true,
         }

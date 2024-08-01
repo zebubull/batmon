@@ -47,7 +47,7 @@ fn run() -> Result<()> {
         Some(d) => {
             Battery::new(&d).map_err(|e| format!("Failed to load specified battery: {e}"))?
         }
-        None => Battery::find().ok_or("Failed to detect a valid battery")?,
+        None => Battery::find(!args.no_cache).ok_or("Failed to detect a valid battery")?,
     };
     let s = bat.state();
     match args.command {

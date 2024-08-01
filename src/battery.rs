@@ -25,8 +25,8 @@ pub struct BatteryState {
 }
 
 impl Battery {
-    pub fn find() -> Option<Self> {
-        if std::fs::metadata("/tmp/batmon-battery").is_ok() {
+    pub fn find(use_cache: bool) -> Option<Self> {
+        if use_cache && std::fs::metadata("/tmp/batmon-battery").is_ok() {
             debug!("Using cached battery");
             if let Ok(bat) = Battery::load_cached_battery() {
                 return Some(bat);
@@ -46,10 +46,6 @@ impl Battery {
             })
             .filter_map(|d| {
                 if !d.is_system_battery() {
-                    debug!(
-                        "Device '{}' is (probably) not a battery",
-                        d.path.file_name().unwrap_or_default().to_string_lossy()
-                    );
                     None
                 } else {
                     let rating = d.rating();
@@ -64,13 +60,17 @@ impl Battery {
             match Battery::try_from(&d) {
                 Ok(bat) => {
                     debug!("found battery at device '{}' (rating {r})", bat.name);
-                    if r < 5 {
+                    if r < 6 {
                         warn!(
-                            "device '{}' may be missing some features (expected 5, got {r})",
+                            "device '{}' may be missing some features (expected 6, got {r})",
                             bat.name
                         );
                     }
-                    let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
+
+                    if use_cache {
+                        let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
+                    }
+
                     return Some(bat);
                 }
                 Err(e) => {
@@ -97,9 +97,9 @@ impl Battery {
 
         let b = Battery::try_from(&device)?;
 
-        if rating < 5 {
+        if rating < 6 {
             warn!(
-                "Cached device '{}' may be missing features (expected 5, got {rating})",
+                "Cached device '{}' may be missing features (expected 6, got {rating})",
                 device
                     .path
                     .file_name()
