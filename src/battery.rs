@@ -36,7 +36,8 @@ impl Battery {
                 }
             })
             .filter_map(|d| {
-                if !d.is_battery() {
+                if !d.is_system_battery() {
+                    debug!("Device '{}' is (probably) not a battery", d.path.file_name().unwrap_or_default().to_string_lossy());
                     None
                 } else {
                     let rating = d.rating();
@@ -50,12 +51,15 @@ impl Battery {
             match Battery::try_from(&d) {
                 Ok(bat) => {
                     debug!("found battery at device '{}' (rating {r})", bat.name);
+                    if r < 5 {
+                        warn!("device '{}' may be missing some features (expected five, got {r})", bat.name);
+                    }
                     return Some(bat);
                 }
                 Err(e) => {
                     let name = d.path.file_name().unwrap_or_default().to_string_lossy().to_string();
                     debug!(
-                        "device {name} (rating {r}) is (probably) not a battery: {e}",
+                        "device {name} (rating {r}) failed to init: {e}",
                     );
                 }
             };
@@ -145,7 +149,7 @@ impl std::fmt::Display for Battery {
 impl TryFrom<&Device> for Battery {
     type Error = Box<dyn std::error::Error>;
     fn try_from(device: &Device) -> Result<Self, Self::Error> {
-        if !device.is_battery() {
+        if !device.is_system_battery() {
             return Err("Invalid type".into());
         }
     

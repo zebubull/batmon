@@ -5,16 +5,17 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn is_battery(&self) -> bool {
+    pub fn is_system_battery(&self) -> bool {
         let meta = match std::fs::metadata(&self.path) {
             Ok(m) => m,
             Err(_) => return false,
         };
-
+    
         if !meta.is_dir() {
             return false;
         }
-
+    
+        // Type should contain "Battery" if the device is a battery
         let type_file = self.path.join("type");
 
         let ty = match std::fs::read_to_string(type_file) {
@@ -22,13 +23,26 @@ impl Device {
             Err(_) => return false,
         };
 
-        debug!(
-            "Found device '{}' of type '{}'",
-            self.path.file_name().unwrap_or_default().to_string_lossy(),
-            ty.trim(),
-        );
+        if ty.trim() != "Battery" {
+            debug!(
+                "Device '{}' ('{}') rejected",
+                self.path.file_name().unwrap_or_default().to_string_lossy(),
+                ty.trim(),
+            );
+            return false;
+        }
+        
+        // Scope may or may not exist.
+        // It can be ignored if not present, but it should contain "System" if it exists.
+        let scope_file = self.path.join("scope");
 
-        ty.trim() == "Battery"
+        match std::fs::read_to_string(scope_file) {
+            Ok(s) =>  {
+                debug!("Match '{}' ({})", self.path.file_name().unwrap_or_default().to_string_lossy(), s.trim());
+                s.trim() == "System"
+            },
+            Err(_) => true,
+        }
     }
 
     fn has_file_available(&self, file: &str) -> bool {
