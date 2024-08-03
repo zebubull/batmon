@@ -25,8 +25,8 @@ pub struct BatteryState {
 }
 
 impl Battery {
-    pub fn find() -> Option<Self> {
-        if std::fs::metadata("/tmp/batmon-battery").is_ok() {
+    pub fn find(use_cache: bool) -> Option<Self> {
+        if use_cache && std::fs::metadata("/tmp/batmon-battery").is_ok() {
             debug!("Using cached battery");
             if let Ok(bat) = Battery::load_cached_battery() {
                 return Some(bat);
@@ -40,10 +40,6 @@ impl Battery {
             .filter_map(|d| d.ok().map(|d| Device::from(d.path())))
             .filter_map(|d| {
                 if !d.is_system_battery() {
-                    debug!(
-                        "Device '{}' is (probably) not a battery",
-                        d.path.file_name().unwrap_or_default().to_string_lossy()
-                    );
                     None
                 } else {
                     let rating = d.rating();
@@ -58,13 +54,17 @@ impl Battery {
             match Battery::try_from(&d) {
                 Ok(bat) => {
                     debug!("found battery at device '{}' (rating {r})", bat.name);
-                    if r < 5 {
+                    if r < 6 {
                         warn!(
-                            "device '{}' may be missing some features (expected 5, got {r})",
+                            "device '{}' may be missing some features (expected 6, got {r})",
                             bat.name
                         );
                     }
-                    let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
+
+                    if use_cache {
+                        let _ = std::fs::write("/tmp/batmon-battery", &bat.name);
+                    }
+
                     return Some(bat);
                 }
                 Err(e) => {
@@ -91,9 +91,9 @@ impl Battery {
 
         let b = Battery::try_from(&device)?;
 
-        if rating < 5 {
+        if rating < 6 {
             warn!(
-                "Cached device '{}' may be missing features (expected 5, got {rating})",
+                "Cached device '{}' may be missing features (expected 6, got {rating})",
                 device
                     .path
                     .file_name()
@@ -152,9 +152,14 @@ impl Battery {
         let capacity = *self.capacity;
         let current = *self.current;
         let total_seconds = match *self.status {
-            ChargingStatus::Full => return String::from("Full"),
-            ChargingStatus::Discharging => charge * 60 * 60 / current,
-            ChargingStatus::Charging => (capacity - charge) * 60 * 60 / current,
+            ChargingStatus::Full => return String::from("00:00:00"),
+            ChargingStatus::NotCharging => return String::from("00:00:00"),
+            ChargingStatus::Discharging => {
+                (charge * 60 * 60).checked_div(current).unwrap_or_default()
+            }
+            ChargingStatus::Charging => ((capacity - charge) * 60 * 60)
+                .checked_div(current)
+                .unwrap_or_default(),
         };
 
         let s = total_seconds % 60;
@@ -167,6 +172,7 @@ impl Battery {
     pub fn remaining_labelled(&self) -> String {
         let label = match *self.status {
             ChargingStatus::Full => return String::from("Full"),
+            ChargingStatus::NotCharging => return String::from("Not charging"),
             ChargingStatus::Charging => "until full",
             ChargingStatus::Discharging => "remaining",
         };
@@ -178,13 +184,15 @@ impl std::fmt::Display for Battery {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} ({}) @ {}%, {}, {}",
-            self.name,
-            *self.cycles,
-            *self.level,
-            *self.status,
-            self.remaining_labelled()
-        )
+            "{} ({}) @ {}%, {}",
+            self.name, *self.cycles, *self.level, *self.status,
+        )?;
+        match *self.status {
+            ChargingStatus::Discharging | ChargingStatus::Charging => {
+                write!(f, ", {}", self.remaining_labelled())
+            }
+            _ => Ok(()),
+        }
     }
 }
 

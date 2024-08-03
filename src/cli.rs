@@ -41,4 +41,8 @@ pub struct Cli {
     /// Use a specific device instead of trying to detect the system battery
     #[arg(short, long)]
     pub device: Option<String>,
+
+    /// Force a rescan of all batteries and ignore the cached system battery
+    #[arg(short, long)]
+    pub no_cache: bool,
 }
