@@ -10,7 +10,7 @@ use cli::{Cli, Command};
 
 type Result<T> = std::result::Result<T, std::boxed::Box<dyn std::error::Error>>;
 
-static APP_NAME: &'static str = "batmon";
+static APP_NAME: &str = "batmon";
 
 fn main() {
     if std::env::var("RUST_LOG").is_err() {
@@ -131,7 +131,7 @@ fn update_battery_and_notify(battery: &mut Battery) -> Result<()> {
         None => {}
     }
 
-    for level in LEVELS.iter() {
+    for level in &LEVELS {
         if old_state.level > level.level {
             if new_state.level <= level.level {
                 info!("Battery at {}%", new_state.level);

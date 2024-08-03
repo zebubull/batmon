@@ -37,13 +37,7 @@ impl Battery {
         let devices = std::fs::read_dir("/sys/class/power_supply").ok()?;
 
         let mut devices: Vec<_> = devices
-            .filter_map(|d| {
-                if d.is_err() {
-                    None
-                } else {
-                    Some(Device::from(d.unwrap().path()))
-                }
-            })
+            .filter_map(|d| d.ok().map(|d| Device::from(d.path())))
             .filter_map(|d| {
                 if !d.is_system_battery() {
                     debug!(

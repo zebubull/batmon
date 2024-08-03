@@ -13,7 +13,7 @@ impl<T> PolledValue<T> {
             path: path.into(),
         };
 
-        if !std::fs::metadata(&p.path).is_ok() {
+        if std::fs::metadata(&p.path).is_err() {
             debug!(
                 "Poll target {} does not exist or is not accessible",
                 p.path.to_string_lossy()
