@@ -12,6 +12,17 @@ type Result<T> = std::result::Result<T, std::boxed::Box<dyn std::error::Error>>;
 
 static APP_NAME: &str = "batmon";
 
+fn start_libnotify() -> Result<()> {
+    match libnotify::init(APP_NAME) {
+        Ok(_) => debug!("Initialized libnotify"),
+        Err(e) => {
+            error!("Failed to initialize libnotify: {e}");
+            Err(e)?
+        }
+    };
+    Ok(())
+}
+
 fn main() {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var(
@@ -24,16 +35,11 @@ fn main() {
         );
     }
     pretty_env_logger::init();
-    match libnotify::init(APP_NAME) {
-        Ok(_) => debug!("Initialized libnotify"),
-        Err(e) => {
-            error!("Failed to initialize libnotify: {e}");
-            std::process::exit(1);
-        }
-    };
 
     let res = run();
-    libnotify::uninit();
+    if libnotify::is_initted() {
+        libnotify::uninit();
+    }
 
     if let Err(ref e) = res {
         error!("Fatal error: {}", e.to_string());
@@ -60,11 +66,14 @@ fn run() -> Result<()> {
         Some(Command::Status) => println!("{}", s.status),
         Some(Command::Time) => println!("{}", bat.remaining()),
         Some(Command::Summary) | None => println!("{bat}"),
-        Some(Command::Daemon(d)) => loop {
-            update_battery_and_notify(&mut bat)?;
-            info!("{bat}");
-            std::thread::sleep(std::time::Duration::from_secs(d.interval));
-        },
+        Some(Command::Daemon(d)) => {
+            start_libnotify()?;
+            loop {
+                update_battery_and_notify(&mut bat)?;
+                info!("{bat}");
+                std::thread::sleep(std::time::Duration::from_secs(d.interval));
+            }
+        }
     }
     Ok(())
 }

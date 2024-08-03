@@ -18,3 +18,5 @@ strum = { version = "0.26.3", features = ["derive"] }
 lto = true
 codegen-units = 1
 strip = true
+opt-level = "s"
+panic = "abort"
